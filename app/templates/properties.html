@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block main %}
+<h2 class="fw-bold mt-4 mb-4">Properties</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="row">
+  {% for prop in properties %}
+  <div class="col-md-4 mb-4">
+    <div class="card h-100">
+      <img src="{{ url_for('static', filename='uploads/' + prop.photo) }}"
+           class="card-img-top" style="height: 200px; object-fit: cover;" alt="{{ prop.title }}">
+      <div class="card-body">
+        <h5 class="card-title">{{ prop.title }}</h5>
+        <p class="text-muted mb-1">📍 {{ prop.location }}</p>
+        <span class="badge bg-primary">${{ prop.price }}</span>
+      </div>
+      <div class="card-footer p-0">
+        <a href="{{ url_for('property_detail', propertyid=prop.id) }}"
+           class="btn w-100" style="background-color: #1abc9c; color: white;">
+          View Property
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -5,8 +5,12 @@ Werkzeug Documentation:  https://werkzeug.palletsprojects.com/
 This file contains the routes for your application.
 """
 
-from app import app
-from flask import render_template, request, redirect, url_for
+import os
+from app import app, db
+from flask import render_template, request, redirect, url_for, flash
+from werkzeug.utils import secure_filename
+from .models import Property
+from .forms import PropertyForm
 
 
 ###
@@ -25,11 +29,59 @@ def about():
     return render_template('about.html', name="Mary Jane")
 
 
+# Route 1: Display the Add New Property form (GET) and handle submission (POST)
+@app.route('/properties/create', methods=['GET', 'POST'])
+def new_property():
+    form = PropertyForm()
+
+    if form.validate_on_submit():
+        # Handle photo upload
+        photo_file = form.photo.data
+        filename = secure_filename(photo_file.filename)
+        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        photo_file.save(upload_path)
+
+        # Save property to database
+        prop = Property(
+            title=form.title.data,
+            description=form.description.data,
+            bedrooms=form.bedrooms.data,
+            bathrooms=form.bathrooms.data,
+            price=form.price.data,
+            prop_type=form.prop_type.data,
+            location=form.location.data,
+            photo=filename
+        )
+        db.session.add(prop)
+        db.session.commit()
+
+        flash('Property successfully added!', 'success')
+        return redirect(url_for('properties'))
+
+    # Flash any form validation errors
+    flash_errors(form)
+    return render_template('new_property.html', form=form)
+
+
+# Route 2: Display list of all properties
+@app.route('/properties')
+def properties():
+    all_props = Property.query.all()
+    return render_template('properties.html', properties=all_props)
+
+
+# Route 3: Display a single property by its id
+@app.route('/properties/<int:propertyid>')
+def property_detail(propertyid):
+    prop = Property.query.get_or_404(propertyid)
+    return render_template('property.html', property=prop)
+
+
 ###
 # The functions below should be applicable to all Flask apps.
 ###
 
-# Display Flask WTF errors as Flash messages
 def flash_errors(form):
     for field, errors in form.errors.items():
         for error in errors:
@@ -37,6 +89,7 @@ def flash_errors(form):
                 getattr(form, field).label.text,
                 error
             ), 'danger')
+
 
 @app.route('/<file_name>.txt')
 def send_text_file(file_name):
@@ -47,11 +100,6 @@ def send_text_file(file_name):
 
 @app.after_request
 def add_header(response):
-    """
-    Add headers to both force latest IE rendering engine or Chrome Frame,
-    and also tell the browser not to cache the rendered page. If we wanted
-    to we could change max-age to 600 seconds which would be 10 minutes.
-    """
     response.headers['X-UA-Compatible'] = 'IE=Edge,chrome=1'
     response.headers['Cache-Control'] = 'public, max-age=0'
     return response
